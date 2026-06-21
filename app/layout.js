@@ -2,12 +2,12 @@ import "./globals.css";
 
 export const metadata = {
   title: "Leads Desk",
-  description: "A small Supabase and Vercel leads tracker"
+  description: "Міні CRM для заявок на Supabase і Vercel"
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ru">
+    <html lang="uk">
       <body>{children}</body>
     </html>
   );
