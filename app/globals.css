@@ -216,6 +216,16 @@ textarea:focus {
   margin-bottom: 16px;
 }
 
+.filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 150px 150px auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
 .cards {
   display: grid;
   gap: 12px;
@@ -292,7 +302,8 @@ textarea:focus {
   }
 
   .row,
-  .lead {
+  .lead,
+  .filters {
     grid-template-columns: 1fr;
   }
 
