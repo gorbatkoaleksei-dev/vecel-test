@@ -89,6 +89,18 @@ export default function Home() {
     }
   }, [session]);
 
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    const refreshTimer = window.setInterval(() => {
+      fetchLeads();
+    }, 8000);
+
+    return () => window.clearInterval(refreshTimer);
+  }, [session]);
+
   async function loadProfileAndLeads() {
     setError("");
 
@@ -389,9 +401,18 @@ export default function Home() {
         <section className="panel list">
           <div className="toolbar">
             <h2>{isAdmin ? "Усі заявки" : "Мої заявки"}</h2>
-            <p className="meta">
-              {visibleLeads.length} з {leads.length} всього
-            </p>
+            <div className="toolbar-actions">
+              <p className="meta">
+                {visibleLeads.length} з {leads.length} всього
+              </p>
+              <button
+                className="button secondary"
+                type="button"
+                onClick={fetchLeads}
+              >
+                Оновити
+              </button>
+            </div>
           </div>
 
           {isAdmin ? (
