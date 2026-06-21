@@ -124,6 +124,7 @@ export default function Home() {
     setError("");
 
     const payload = {
+      user_id: session.user.id,
       name: form.name.trim(),
       company: form.company.trim(),
       note: form.note.trim(),
