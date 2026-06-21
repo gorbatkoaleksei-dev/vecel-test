@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const statuses = [
-  { value: "new", label: "Новая" },
-  { value: "in_progress", label: "В работе" },
+  { value: "new", label: "Нова" },
+  { value: "in_progress", label: "У роботі" },
   { value: "done", label: "Готово" }
 ];
 
@@ -19,6 +19,7 @@ export default function Home() {
   );
 
   const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [email, setEmail] = useState("");
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,9 +28,11 @@ export default function Home() {
   const [form, setForm] = useState({
     name: "",
     company: "",
-    status: "new",
     note: ""
   });
+  const [savingId, setSavingId] = useState("");
+
+  const isAdmin = profile?.role === "admin";
 
   useEffect(() => {
     async function loadSession() {
@@ -59,15 +62,33 @@ export default function Home() {
 
   useEffect(() => {
     if (session) {
-      fetchLeads();
+      loadProfileAndLeads();
     }
   }, [session]);
+
+  async function loadProfileAndLeads() {
+    setError("");
+
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("id,email,role")
+      .eq("id", session.user.id)
+      .single();
+
+    if (profileError) {
+      setError(profileError.message);
+      return;
+    }
+
+    setProfile(profileData);
+    await fetchLeads();
+  }
 
   async function fetchLeads() {
     setError("");
     const { data, error: fetchError } = await supabase
       .from("leads")
-      .select("*")
+      .select("*, profiles!leads_user_profile_fkey(email)")
       .order("created_at", { ascending: false });
 
     if (fetchError) {
@@ -95,7 +116,7 @@ export default function Home() {
       return;
     }
 
-    setMessage("Проверь почту и открой ссылку для входа.");
+    setMessage("Перевір пошту та відкрий посилання для входу.");
   }
 
   async function addLead(event) {
@@ -105,12 +126,12 @@ export default function Home() {
     const payload = {
       name: form.name.trim(),
       company: form.company.trim(),
-      status: form.status,
-      note: form.note.trim()
+      note: form.note.trim(),
+      status: "new"
     };
 
     if (!payload.name) {
-      setError("Укажи имя клиента или название заявки.");
+      setError("Вкажи ім'я клієнта або назву заявки.");
       return;
     }
 
@@ -121,16 +142,20 @@ export default function Home() {
       return;
     }
 
-    setForm({ name: "", company: "", status: "new", note: "" });
+    setForm({ name: "", company: "", note: "" });
     await fetchLeads();
   }
 
-  async function updateStatus(id, status) {
+  async function updateLead(id, changes) {
     setError("");
+    setSavingId(id);
+
     const { error: updateError } = await supabase
       .from("leads")
-      .update({ status })
+      .update(changes)
       .eq("id", id);
+
+    setSavingId("");
 
     if (updateError) {
       setError(updateError.message);
@@ -158,13 +183,14 @@ export default function Home() {
   async function signOut() {
     await supabase.auth.signOut();
     setSession(null);
+    setProfile(null);
     setLeads([]);
   }
 
   if (loading) {
     return (
       <main className="shell">
-        <p className="hint">Загрузка...</p>
+        <p className="hint">Завантаження...</p>
       </main>
     );
   }
@@ -175,7 +201,7 @@ export default function Home() {
         <section className="panel login">
           <h1>Leads Desk</h1>
           <p className="hint">
-            Введи email, получи ссылку и зайди в личный список заявок.
+            Введи email, отримай посилання та увійди до списку заявок.
           </p>
           <form onSubmit={sendMagicLink}>
             <label className="field">
@@ -189,7 +215,7 @@ export default function Home() {
               />
             </label>
             <button className="button" type="submit">
-              Получить ссылку
+              Отримати посилання
             </button>
             {message ? <div className="success">{message}</div> : null}
             {error ? <div className="error">{error}</div> : null}
@@ -204,31 +230,39 @@ export default function Home() {
       <header className="topbar">
         <div className="brand">
           <h1>Leads Desk</h1>
-          <p>Мини CRM на Next.js, Supabase и Vercel</p>
+          <p>
+            {isAdmin
+              ? "Адмін-панель заявок клієнтів"
+              : "Оформлення та відстеження заявок"}
+          </p>
         </div>
-        <button className="button secondary" type="button" onClick={signOut}>
-          Выйти
-        </button>
+        <div className="account">
+          <span>{session.user.email}</span>
+          <strong>{isAdmin ? "admin" : "client"}</strong>
+          <button className="button secondary" type="button" onClick={signOut}>
+            Вийти
+          </button>
+        </div>
       </header>
 
       {error ? <div className="error">{error}</div> : null}
 
       <section className="grid">
         <aside className="panel form">
-          <h2>Новая заявка</h2>
+          <h2>Нова заявка</h2>
           <form onSubmit={addLead}>
             <label className="field">
-              <span>Клиент / заявка</span>
+              <span>Клієнт / заявка</span>
               <input
                 value={form.name}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, name: event.target.value }))
                 }
-                placeholder="Например: Иван Петров"
+                placeholder="Наприклад: Іван Петренко"
               />
             </label>
             <label className="field">
-              <span>Компания</span>
+              <span>Компанія</span>
               <input
                 value={form.company}
                 onChange={(event) =>
@@ -237,53 +271,33 @@ export default function Home() {
                     company: event.target.value
                   }))
                 }
-                placeholder="Например: Acme"
+                placeholder="Наприклад: Acme"
               />
             </label>
-            <div className="row">
-              <label className="field">
-                <span>Статус</span>
-                <select
-                  value={form.status}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      status: event.target.value
-                    }))
-                  }
-                >
-                  {statuses.map((status) => (
-                    <option key={status.value} value={status.value}>
-                      {status.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
             <label className="field">
-              <span>Комментарий</span>
+              <span>Опис заявки</span>
               <textarea
                 value={form.note}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, note: event.target.value }))
                 }
-                placeholder="Что нужно сделать?"
+                placeholder="Що потрібно зробити?"
               />
             </label>
             <button className="button" type="submit">
-              Добавить
+              Надіслати заявку
             </button>
           </form>
         </aside>
 
         <section className="panel list">
           <div className="toolbar">
-            <h2>Заявки</h2>
-            <p className="meta">{leads.length} всего</p>
+            <h2>{isAdmin ? "Усі заявки" : "Мої заявки"}</h2>
+            <p className="meta">{leads.length} всього</p>
           </div>
 
           {leads.length === 0 ? (
-            <div className="empty">Пока нет заявок.</div>
+            <div className="empty">Поки що немає заявок.</div>
           ) : (
             <div className="cards">
               {leads.map((lead) => (
@@ -294,30 +308,51 @@ export default function Home() {
                       {statuses.find((status) => status.value === lead.status)
                         ?.label ?? lead.status}
                     </span>
-                    {lead.company ? <p>{lead.company}</p> : null}
-                    {lead.note ? <p>{lead.note}</p> : null}
+                    {isAdmin && lead.profiles?.email ? (
+                      <p>Клієнт: {lead.profiles.email}</p>
+                    ) : null}
+                    {lead.company ? <p>Компанія: {lead.company}</p> : null}
+                    {lead.note ? <p>Заявка: {lead.note}</p> : null}
+                    {lead.admin_note ? (
+                      <p className="admin-note">Коментар: {lead.admin_note}</p>
+                    ) : null}
                   </div>
-                  <div className="actions">
-                    <select
-                      value={lead.status}
-                      onChange={(event) =>
-                        updateStatus(lead.id, event.target.value)
-                      }
-                    >
-                      {statuses.map((status) => (
-                        <option key={status.value} value={status.value}>
-                          {status.label}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      className="button danger"
-                      type="button"
-                      onClick={() => deleteLead(lead.id)}
-                    >
-                      Удалить
-                    </button>
-                  </div>
+
+                  {isAdmin ? (
+                    <div className="actions">
+                      <select
+                        value={lead.status}
+                        onChange={(event) =>
+                          updateLead(lead.id, { status: event.target.value })
+                        }
+                      >
+                        {statuses.map((status) => (
+                          <option key={status.value} value={status.value}>
+                            {status.label}
+                          </option>
+                        ))}
+                      </select>
+                      <textarea
+                        defaultValue={lead.admin_note ?? ""}
+                        placeholder="Коментар адміна"
+                        onBlur={(event) =>
+                          updateLead(lead.id, {
+                            admin_note: event.target.value.trim()
+                          })
+                        }
+                      />
+                      <button
+                        className="button danger"
+                        type="button"
+                        onClick={() => deleteLead(lead.id)}
+                      >
+                        Видалити
+                      </button>
+                      {savingId === lead.id ? (
+                        <span className="meta">Збереження...</span>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </article>
               ))}
             </div>
