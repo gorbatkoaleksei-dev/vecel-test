@@ -31,9 +31,31 @@ export default function Home() {
     company: "",
     note: ""
   });
+  const [drafts, setDrafts] = useState({});
+  const [filters, setFilters] = useState({
+    email: "",
+    dateFrom: "",
+    dateTo: ""
+  });
   const [savingId, setSavingId] = useState("");
 
   const isAdmin = profile?.role === "admin";
+  const visibleLeads = useMemo(() => {
+    if (!isAdmin) {
+      return leads;
+    }
+
+    return leads.filter((lead) => {
+      const emailMatches = (lead.client_email ?? "")
+        .toLowerCase()
+        .includes(filters.email.trim().toLowerCase());
+      const createdDate = lead.created_at?.slice(0, 10);
+      const fromMatches = !filters.dateFrom || createdDate >= filters.dateFrom;
+      const toMatches = !filters.dateTo || createdDate <= filters.dateTo;
+
+      return emailMatches && fromMatches && toMatches;
+    });
+  }, [filters, isAdmin, leads]);
 
   useEffect(() => {
     async function loadSession() {
@@ -98,6 +120,17 @@ export default function Home() {
     }
 
     setLeads(data ?? []);
+    setDrafts(
+      Object.fromEntries(
+        (data ?? []).map((lead) => [
+          lead.id,
+          {
+            status: lead.status,
+            admin_note: lead.admin_note ?? ""
+          }
+        ])
+      )
+    );
   }
 
   async function signInWithPassword(event) {
@@ -186,6 +219,29 @@ export default function Home() {
     }
 
     await fetchLeads();
+  }
+
+  function updateDraft(id, changes) {
+    setDrafts((current) => ({
+      ...current,
+      [id]: {
+        ...(current[id] ?? {}),
+        ...changes
+      }
+    }));
+  }
+
+  async function saveAdminChanges(id) {
+    const draft = drafts[id];
+
+    if (!draft) {
+      return;
+    }
+
+    await updateLead(id, {
+      status: draft.status,
+      admin_note: draft.admin_note.trim()
+    });
   }
 
   async function deleteLead(id) {
@@ -333,14 +389,69 @@ export default function Home() {
         <section className="panel list">
           <div className="toolbar">
             <h2>{isAdmin ? "Усі заявки" : "Мої заявки"}</h2>
-            <p className="meta">{leads.length} всього</p>
+            <p className="meta">
+              {visibleLeads.length} з {leads.length} всього
+            </p>
           </div>
 
-          {leads.length === 0 ? (
+          {isAdmin ? (
+            <div className="filters">
+              <label className="field">
+                <span>Email клієнта</span>
+                <input
+                  value={filters.email}
+                  onChange={(event) =>
+                    setFilters((current) => ({
+                      ...current,
+                      email: event.target.value
+                    }))
+                  }
+                  placeholder="client@example.com"
+                />
+              </label>
+              <label className="field">
+                <span>Дата з</span>
+                <input
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(event) =>
+                    setFilters((current) => ({
+                      ...current,
+                      dateFrom: event.target.value
+                    }))
+                  }
+                />
+              </label>
+              <label className="field">
+                <span>Дата по</span>
+                <input
+                  type="date"
+                  value={filters.dateTo}
+                  onChange={(event) =>
+                    setFilters((current) => ({
+                      ...current,
+                      dateTo: event.target.value
+                    }))
+                  }
+                />
+              </label>
+              <button
+                className="button secondary"
+                type="button"
+                onClick={() =>
+                  setFilters({ email: "", dateFrom: "", dateTo: "" })
+                }
+              >
+                Скинути
+              </button>
+            </div>
+          ) : null}
+
+          {visibleLeads.length === 0 ? (
             <div className="empty">Поки що немає заявок.</div>
           ) : (
             <div className="cards">
-              {leads.map((lead) => (
+              {visibleLeads.map((lead) => (
                 <article className="lead" key={lead.id}>
                   <div>
                     <h3>{lead.name}</h3>
@@ -361,9 +472,9 @@ export default function Home() {
                   {isAdmin ? (
                     <div className="actions">
                       <select
-                        value={lead.status}
+                        value={drafts[lead.id]?.status ?? lead.status}
                         onChange={(event) =>
-                          updateLead(lead.id, { status: event.target.value })
+                          updateDraft(lead.id, { status: event.target.value })
                         }
                       >
                         {statuses.map((status) => (
@@ -373,14 +484,21 @@ export default function Home() {
                         ))}
                       </select>
                       <textarea
-                        defaultValue={lead.admin_note ?? ""}
+                        value={drafts[lead.id]?.admin_note ?? ""}
                         placeholder="Коментар адміна"
-                        onBlur={(event) =>
-                          updateLead(lead.id, {
-                            admin_note: event.target.value.trim()
+                        onChange={(event) =>
+                          updateDraft(lead.id, {
+                            admin_note: event.target.value
                           })
                         }
                       />
+                      <button
+                        className="button"
+                        type="button"
+                        onClick={() => saveAdminChanges(lead.id)}
+                      >
+                        Зберегти
+                      </button>
                       <button
                         className="button danger"
                         type="button"
