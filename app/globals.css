@@ -68,6 +68,21 @@ button {
   color: var(--muted);
 }
 
+.account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+}
+
+.account strong {
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: #e8f5f5;
+  color: #096b6d;
+  font-size: 13px;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -226,6 +241,11 @@ textarea:focus {
   line-height: 1.45;
 }
 
+.lead .admin-note {
+  color: #17202a;
+  font-weight: 700;
+}
+
 .actions {
   display: grid;
   gap: 10px;
@@ -261,7 +281,8 @@ textarea:focus {
   }
 
   .topbar,
-  .toolbar {
+  .toolbar,
+  .account {
     align-items: stretch;
     flex-direction: column;
   }
