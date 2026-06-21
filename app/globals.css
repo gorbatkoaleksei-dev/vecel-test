@@ -216,6 +216,12 @@ textarea:focus {
   margin-bottom: 16px;
 }
 
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .filters {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) 150px 150px auto;
@@ -292,6 +298,7 @@ textarea:focus {
 
   .topbar,
   .toolbar,
+  .toolbar-actions,
   .account {
     align-items: stretch;
     flex-direction: column;
