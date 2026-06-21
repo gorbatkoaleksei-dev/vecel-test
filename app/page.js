@@ -21,6 +21,7 @@ export default function Home() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -99,16 +100,14 @@ export default function Home() {
     setLeads(data ?? []);
   }
 
-  async function sendMagicLink(event) {
+  async function signInWithPassword(event) {
     event.preventDefault();
     setError("");
     setMessage("");
 
-    const { error: signInError } = await supabase.auth.signInWithOtp({
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
-      options: {
-        emailRedirectTo: window.location.origin
-      }
+      password
     });
 
     if (signInError) {
@@ -116,7 +115,29 @@ export default function Home() {
       return;
     }
 
-    setMessage("Перевір пошту та відкрий посилання для входу.");
+    setMessage("");
+  }
+
+  async function signUpWithPassword() {
+    setError("");
+    setMessage("");
+
+    if (password.length < 6) {
+      setError("Пароль має містити щонайменше 6 символів.");
+      return;
+    }
+
+    const { error: signUpError } = await supabase.auth.signUp({
+      email,
+      password
+    });
+
+    if (signUpError) {
+      setError(signUpError.message);
+      return;
+    }
+
+    setMessage("Акаунт створено. Тепер увійди з цим email і паролем.");
   }
 
   async function addLead(event) {
@@ -202,9 +223,9 @@ export default function Home() {
         <section className="panel login">
           <h1>Leads Desk</h1>
           <p className="hint">
-            Введи email, отримай посилання та увійди до списку заявок.
+            Увійди або створи акаунт, щоб працювати із заявками.
           </p>
-          <form onSubmit={sendMagicLink}>
+          <form onSubmit={signInWithPassword}>
             <label className="field">
               <span>Email</span>
               <input
@@ -215,8 +236,25 @@ export default function Home() {
                 required
               />
             </label>
+            <label className="field">
+              <span>Пароль</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Мінімум 6 символів"
+                required
+              />
+            </label>
             <button className="button" type="submit">
-              Отримати посилання
+              Увійти
+            </button>
+            <button
+              className="button secondary"
+              type="button"
+              onClick={signUpWithPassword}
+            >
+              Створити акаунт
             </button>
             {message ? <div className="success">{message}</div> : null}
             {error ? <div className="error">{error}</div> : null}
