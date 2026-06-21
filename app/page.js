@@ -89,7 +89,7 @@ export default function Home() {
     setError("");
     const { data, error: fetchError } = await supabase
       .from("leads")
-      .select("*, profiles!leads_user_profile_fkey(email)")
+      .select("*")
       .order("created_at", { ascending: false });
 
     if (fetchError) {
@@ -146,6 +146,7 @@ export default function Home() {
 
     const payload = {
       user_id: session.user.id,
+      client_email: session.user.email,
       name: form.name.trim(),
       company: form.company.trim(),
       note: form.note.trim(),
@@ -347,8 +348,8 @@ export default function Home() {
                       {statuses.find((status) => status.value === lead.status)
                         ?.label ?? lead.status}
                     </span>
-                    {isAdmin && lead.profiles?.email ? (
-                      <p>Клієнт: {lead.profiles.email}</p>
+                    {isAdmin && lead.client_email ? (
+                      <p>Клієнт: {lead.client_email}</p>
                     ) : null}
                     {lead.company ? <p>Компанія: {lead.company}</p> : null}
                     {lead.note ? <p>Заявка: {lead.note}</p> : null}
